@@ -8,10 +8,11 @@ from SSHClient import SSHClient
 from SoundWorker import SoundWorker
 from VideoWorker import VideoWorker
 from MovementWorker import MovementWorker
+from TimelineWorker import TimelineWorker
 
 
 class RobotControl:
-    def __init__(self, nao_ip, nao_port, wxmain):
+    def __init__(self, nao_ip, nao_port, wxmain, timelines):
         """Connect to robot, initiate variables and functions"""
         self.wxmain = wxmain
 
@@ -30,6 +31,8 @@ class RobotControl:
 
         # Set up Movement client
         self.movement = MovementWorker(wxmain, nao_ip, nao_port)
+        # Set up Timeline client
+        self.timelines = TimelineWorker(timelines, wxmain nao_ip, nao_port)
 
         # Set up SSH client
         self.ssh_client = SSHClient(server=nao_ip, username="nao", password="nao")
@@ -43,7 +46,7 @@ class RobotControl:
         self.sound_streamer.start_stream()
         # Sets up video stream
         self.video = VideoWorker(wxmain, nao_ip, nao_port)
-        print "CONNECTED"
+        print("CONNECTED")
 
     def get_battery_charge(self):
         battery_charge = "N/A"

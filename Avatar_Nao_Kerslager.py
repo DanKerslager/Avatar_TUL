@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import threading
 import wx
+import os
+import sys
 
 from RobotControl import RobotControl
 from JoystickWorker import JoystickPanel
-from ChatApiWorker import ChatGPTClient
 
 """
 PŘEDPOKLADY:
@@ -51,6 +52,11 @@ class RobotControlFrame(wx.Frame):
         self.panel = wx.Panel(self)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
+        self.timelines_folder = self.get_timelines_folder()
+        self.timelines = self.get_timelines()
+        self.timline_combo = wx.ComboBox(self.panel, choices=self.timelines, style=wx.CB_READONLY)
+        self.load_timeline_button = wx.Button(self.panel, label="Load Timeline")
+
         # Initialize widgets
         self.status = wx.StaticText(self.panel, label="Status: Not Connected")
         self.sizer.Add(self.status, 0, wx.ALL | wx.EXPAND, 10)
@@ -96,8 +102,6 @@ class RobotControlFrame(wx.Frame):
 
         self.new_window_button = wx.Button(self.panel, label="New window")
         self.active_toggle = wx.ToggleButton(self.panel, label="Active")
-
-        self.chatClient = ChatGPTClient(api_key, self.transcript)
 
         self.create_widgets()
         self.bind_widgets()
@@ -165,6 +169,8 @@ class RobotControlFrame(wx.Frame):
         bottom_sizer2.Add(self.pointer_front, 0, wx.ALL | wx.EXPAND, 5)
         bottom_sizer2.Add(self.pointer_right, 0, wx.ALL | wx.EXPAND, 5)
         bottom_sizer2.Add(self.waver, 0, wx.ALL | wx.EXPAND, 5)
+        bottom_sizer2.Add(self.timline_combo, 0, wx.ALL | wx.EXPAND, 5)
+        bottom_sizer2.Add(self.load_timeline_button, 0, wx.ALL | wx.EXPAND, 5)
 
         self.sizer.Add(bottom_sizer2, 0, wx.ALL | wx.EXPAND, 10)
 
@@ -220,6 +226,8 @@ class RobotControlFrame(wx.Frame):
 
         self.active_toggle.Bind(wx.EVT_TOGGLEBUTTON, self.on_toggle)
 
+        self.load_timeline_button.Bind(wx.EVT_BUTTON, self.on_load_timeline)
+
     def process_input(self, event):
         """Checks for right IP and port entries, connects to given IP if passes"""
         if self.ip_entry.GetValue() == "":
@@ -235,7 +243,7 @@ class RobotControlFrame(wx.Frame):
         else:
             self.status.SetLabel("Status: Connected")
             # self.make_connect_file(self.ip_entry.GetValue(), self.port_entry.GetValue())
-            self.robot = RobotControl(str(self.ip_entry.GetValue()), int(self.port_entry.GetValue()), self)
+            self.robot = RobotControl(str(self.ip_entry.GetValue()), int(self.port_entry.GetValue()), self, self.timelines_folder)
 
     def update_transcript(self, sender, text):
         self.transcript.append({sender, text})
@@ -280,6 +288,38 @@ class RobotControlFrame(wx.Frame):
     def receive_text(self):
         text = input("input: ")
         self.update_transcript("Guest", text)
+
+    def get_timelines_folder(self):
+        """Return the path to the 'timelines' folder, handling both script and executable cases."""
+        if getattr(sys, 'frozen', False):  # Check if running from a bundled executable
+            # Use the directory where the executable is located
+            app_dir = os.path.dirname(sys.executable)
+        else:
+            # Use the directory of the current script in development
+            app_dir = os.path.dirname(__file__)
+
+        # Construct the path to the 'timelines' folder (relative to the exe or script)
+        timelines_path = os.path.join(app_dir, 'timelines')
+        return timelines_path
+
+    def get_timelines(self):
+        """Return a list of all Python files in the timelines folder."""
+        timeline_files = []
+        if os.path.exists(self.timelines_folder):
+            for file in os.listdir(self.timelines_folder):
+                # For simplicity, only include Python files (you can adjust the extension)
+                if file.endswith('.py'):
+                    timeline_files.append(file)
+        return timeline_files
+    
+    def on_load_timeline(self, event):
+        """Handle the event when the 'Load Timeline' button is clicked."""
+        selected_timeline = self.timline_combo.GetValue()
+        if selected_timeline:
+            self.robot.timelines.play(selected_timeline)
+        else:
+            print("No timeline selected")
+
 
     def volume_adjust_robot(self, event):
         """Changes volume of robot's output (loudspeakers)"""
