@@ -25,6 +25,7 @@ class RobotControl:
         self.life = ALProxy("ALAutonomousLife", nao_ip, nao_port)
         self.life.setState("safeguard")
 
+        self.audio = ALProxy("ALAudioDevice", nao_ip, nao_port)  # audio module
         self.leds_light = ALProxy("ALLeds", nao_ip, nao_port)
         self.battery = ALProxy("ALBattery", nao_ip, nao_port)
         self.get_battery_charge()
@@ -32,13 +33,14 @@ class RobotControl:
         # Set up Movement client
         self.movement = MovementWorker(wxmain, nao_ip, nao_port)
         # Set up Timeline client
-        self.timelines = TimelineWorker(timelines, wxmain nao_ip, nao_port)
+        self.timelines = TimelineWorker(timelines, wxmain, nao_ip, nao_port)
 
         # Set up SSH client
         self.ssh_client = SSHClient(server=nao_ip, username="nao", password="nao")
         # Sets up LIVE robot audio stream
         self.ssh_client.run_ssh_command(
-            "gst-launch-0.10 pulsesrc ! audioconvert ! audio/x-raw-int,rate=44100,channels=2,depth=16 ! tcpserversink port=1234")
+            "gst-launch-0.10 pulsesrc device=alsa_input.0.input-microphones ! audioconvert ! audioresample ! audio/x-raw-float,rate=44100,channels=2 ! tcpserversink port=1234 sync=false")
+        
         # Sets up vlc catching the LIVE stream
         #self.sound_streamer = SoundWorker("sound_streamer", "tcp://" + nao_ip + ":1234")
         self.sound_streamer = SoundWorker(nao_ip, 1234)

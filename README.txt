@@ -1,0 +1,1 @@
+pyinstaller --distpath ./dist/avatar avatar_nao_kerslager.spec

@@ -4,21 +4,14 @@ block_cipher = None
 
 a = Analysis(['avatar_nao_kerslager.py'],
              pathex=['C:\\Users\\danke\\Downloads\\PRJ\\BP_APP\\Avatar_Nao_Kerslager'],
-             binaries=[
-                 ('.\\dependencies\\libvlc.dll', '.'),
-                 ('.\\dependencies\\libvlccore.dll', '.'),
-                 ('.\\dependencies\\vlc_plugins', 'vlc_plugins'),  # Added plugins directory
-             ],
+             binaries=[],
              datas=[
-                 ('.\\dependencies\\naoqi.py', 'naoqi'),
-                 ('.\\dependencies\\vlc.py', 'vlc'),  # Only the .py file
+                 ('.\\dependencies\\naoqi.py', 'naoqi')  # Only the .py file
              ],
-             hiddenimports=['naoqi', 'vlc'],  # Ensure naoqi and vlc are bundled
+             hiddenimports=['naoqi'],  # Ensure naoqi is bundled
              hookspath=[],
              runtime_hooks=[],
              excludes=[],
-             win_no_prefer_redirects=False,
-             win_private_assemblies=False,
              cipher=block_cipher)
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
@@ -32,5 +25,5 @@ exe = EXE(pyz,
           debug=False,
           strip=False,
           upx=True,
-          runtime_tmpdir=None,
-          console=True)
+          console=True,  # Change to False if this is a GUI app
+)

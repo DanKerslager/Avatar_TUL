@@ -2,7 +2,7 @@ import os
 import sys
 from naoqi import ALProxy
 
-class TimelinePlayer:
+class TimelineWorker:
     """
     A class to manage and play Choregraphe-exported timelines.
     """
@@ -33,7 +33,7 @@ class TimelinePlayer:
 
         # Check if the timeline file exists
         if not os.path.exists(timeline_path):
-            print(f"Timeline file {timeline_name} not found in {self.timeline_folder}.")
+            print("Timeline file {timeline_name} not found in {self.timeline_folder}.")
             return
         
         # Read the timeline script
@@ -41,15 +41,15 @@ class TimelinePlayer:
             script = file.read()
         
         # Replace the placeholder ALProxy with actual robot IP and port
-        script = script.replace('ALProxy("ALMotion")', f'ALProxy("ALMotion", "{self.robot_ip}", {self.robot_port})')
+        script = script.replace('ALProxy("ALMotion")', 'ALProxy("ALMotion", "{self.robot_ip}", {self.robot_port})')
         script = script.replace('BaseException, err:', 'BaseException as err:')
         script = script.replace('print err', 'print(err)')
 
         # Execute the script safely
         try:
             exec(script, {"__name__": "__main__", "ALProxy": ALProxy})
-            print(f"Successfully played timeline: {timeline_name}")
+            print("Successfully played timeline: {timeline_name}")
         except Exception as e:
-            print(f"Error executing timeline {timeline_name}: {e}")
+            print("Error executing timeline {timeline_name}: {e}")
         self.running = False
 

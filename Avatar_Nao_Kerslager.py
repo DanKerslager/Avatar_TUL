@@ -6,20 +6,12 @@ import sys
 
 from RobotControl import RobotControl
 from JoystickWorker import JoystickPanel
+from SttWorker import SttWorker
 
 """
 PŘEDPOKLADY:
 python 2.7(.18) (32bit!)
 balíčky:
-Vlc (32bit)
-    https://get.videolan.org/vlc/3.0.20/win32/vlc-3.0.20-win32.exe (32bit!)
-    Možné problémy s DLL a přidáním do PATH
-  
-python-vlc v2.2 (v3.0)
-    pip install python-vlc==3.0.20123
-
-paramiko 2.12
-    "pip install paramiko==2.12.0"
 
 naoqi
     (https://community-static.aldebaran.com/resources/2.1.4.13/sdk-python/pynaoqi-2.1.4.13.win32.exe)
@@ -27,8 +19,6 @@ wx: "pip install wxpython==4.0.0.0"
 
 extra: bind tlačítek na klávesnici pro ovládání robota (možná i přes ovladač?)
 extra: nastavitelnost rychlosti pohybu - frekvence a krok - pomoci slidebarů
-extra: extra funkce tlačítek než jen fakty
-extra: světla na robotovi, nějaký efekty když provádi akce/mluví apod
 extra: CZ a EN jazyk přepnutí
 """
 
@@ -46,7 +36,6 @@ class RobotControlFrame(wx.Frame):
         self.robot_volume = 60
         self.app_volume = 60
         self.robot = None
-        self.transcript = []
         self.active = True
 
         self.panel = wx.Panel(self)
@@ -63,7 +52,6 @@ class RobotControlFrame(wx.Frame):
         self.ip_entry = wx.TextCtrl(self.panel, value=self.ip_val)
         self.port_entry = wx.TextCtrl(self.panel, value=self.port_val)
         self.tts_entry = wx.TextCtrl(self.panel, value="Enter text to speak here..", size=(400, -1))
-        self.transcript_field = wx.TextCtrl(self.panel, style=wx.TE_MULTILINE, size=(400, 150))
 
         self.confirm_button = wx.Button(self.panel, label="Connect")
         self.disconnect_button = wx.Button(self.panel, label="Disconnect/reset")
@@ -101,13 +89,15 @@ class RobotControlFrame(wx.Frame):
         self.joystick_panel = JoystickPanel(self.panel, self.move_head)
 
         self.new_window_button = wx.Button(self.panel, label="New window")
-        self.active_toggle = wx.ToggleButton(self.panel, label="Active")
+        self.active_toggle = wx.Button(self.panel, label="Active")
+        self.voice_button = wx.Button(self.panel, label="Voice input: OFF")
+
+        self.Stt = SttWorker(self)
 
         self.create_widgets()
         self.bind_widgets()
         self.panel.SetSizer(self.sizer)
         self.sizer.Fit(self)
-        self.update_transcript("", "Zacatek konverzace :")
 
     def create_widgets(self):
         # Top Section (IP, Port, Connect, Disconnect, Sit, Stand, Battery)
@@ -132,7 +122,7 @@ class RobotControlFrame(wx.Frame):
         left_sizer.Add(wx.StaticText(self.panel, label="App Volume"), 0, wx.ALL | wx.EXPAND, 5)
         left_sizer.Add(self.vol_slider_app, 0, wx.ALL | wx.EXPAND, 5)
 
-        # Middle Section (Video Player and Transcript)
+        # Middle Section (Video Player and Movement)
         middle_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # Video Sizer
@@ -143,46 +133,54 @@ class RobotControlFrame(wx.Frame):
         middle_sizer.Add(left_sizer, 0, wx.ALL | wx.EXPAND, 10)
         middle_sizer.Add(video_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
-        # Right Section (Transcript)
-        middle_sizer.Add(wx.StaticText(self.panel, label="Transcript:"), 0, wx.ALL | wx.EXPAND, 5)
-        middle_sizer.Add(self.transcript_field, 0, wx.ALL | wx.EXPAND, 10)
+        # Right Section (Movement)
+        right_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        arrow_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        arrow_sizer.Add(self.rotate_left_button, 0, wx.ALL | wx.EXPAND, 5)
+        arrow_sizer.Add(self.move_forward_button, 0, wx.ALL | wx.EXPAND, 5)
+        arrow_sizer.Add(self.rotate_right_button, 0, wx.ALL | wx.EXPAND, 5)
+
+        pose_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        pose_sizer.Add(self.sit_button, 0, wx.ALL | wx.EXPAND, 5)
+        pose_sizer.Add(self.stand_button, 0, wx.ALL | wx.EXPAND, 5)
+
+        movement_sizer1 = wx.BoxSizer(wx.HORIZONTAL)
+        movement_sizer1.Add(self.pointer_left, 0, wx.ALL | wx.EXPAND, 5)
+        movement_sizer1.Add(self.pointer_right, 0, wx.ALL | wx.EXPAND, 5)
+
+        movement_sizer2 = wx.BoxSizer(wx.HORIZONTAL)
+        movement_sizer2.Add(self.pointer_front, 0, wx.ALL | wx.EXPAND, 5)
+        movement_sizer2.Add(self.waver, 0, wx.ALL | wx.EXPAND, 5)
+
+
+        timeline_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        timeline_sizer.Add(self.timline_combo, 0, wx.ALL | wx.EXPAND, 5)
+        timeline_sizer.Add(self.load_timeline_button, 0, wx.ALL | wx.EXPAND, 5)
+
+        joystick_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        joystick_sizer.Add(self.joystick_panel, 0, wx.ALL | wx.ALIGN_CENTER, 10)
+
+        right_sizer.Add(arrow_sizer, 0, wx.ALL | wx.EXPAND, 10)
+        right_sizer.Add(pose_sizer, 0, wx.ALL | wx.EXPAND, 10)
+        right_sizer.Add(movement_sizer1, 0, wx.ALL | wx.EXPAND, 10)
+        right_sizer.Add(movement_sizer2, 0, wx.ALL | wx.EXPAND, 10)
+        right_sizer.Add(timeline_sizer, 0, wx.ALL | wx.EXPAND, 10)
+        right_sizer.Add(joystick_sizer, 0, wx.ALL | wx.EXPAND, 10)
+        right_sizer.Add(self.voice_button, 0, wx.ALL | wx.EXPAND, 10)
+        middle_sizer.Add(right_sizer, 0, wx.ALL | wx.EXPAND, 10)
         self.sizer.Add(middle_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
-        # Bottom Section 1 (Arrow Buttons, Text to Speech)
+        # Bottom Section 1 (Text to Speech)
         bottom_sizer1 = wx.BoxSizer(wx.HORIZONTAL)
-        bottom_sizer1.Add(self.rotate_left_button, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer1.Add(self.move_forward_button, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer1.Add(self.rotate_right_button, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer1.Add(self.sit_button, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer1.Add(self.stand_button, 0, wx.ALL | wx.EXPAND, 5)
-
         bottom_sizer1.Add(wx.StaticText(self.panel, label="Text to speech:"), 0, wx.ALL | wx.EXPAND, 5)
         bottom_sizer1.Add(self.tts_entry, 1, wx.ALL | wx.EXPAND, 5)
         bottom_sizer1.Add(self.tts_button, 0, wx.ALL | wx.EXPAND, 5)
-
         self.sizer.Add(bottom_sizer1, 0, wx.ALL | wx.EXPAND, 10)
-
-        # Bottom Section 2 (Arrow Buttons, Text to Speech)
-        bottom_sizer2 = wx.BoxSizer(wx.HORIZONTAL)
-        bottom_sizer2.Add(self.pointer_left, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer2.Add(self.pointer_front, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer2.Add(self.pointer_right, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer2.Add(self.waver, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer2.Add(self.timline_combo, 0, wx.ALL | wx.EXPAND, 5)
-        bottom_sizer2.Add(self.load_timeline_button, 0, wx.ALL | wx.EXPAND, 5)
-
-        self.sizer.Add(bottom_sizer2, 0, wx.ALL | wx.EXPAND, 10)
-
-        # Add the joystick control at the bottom
-        bottom_sizer3 = wx.BoxSizer(wx.HORIZONTAL)
-        bottom_sizer3.Add(self.joystick_panel, 0, wx.ALL | wx.ALIGN_CENTER, 10)
-
-        self.sizer.Add(bottom_sizer3, 0, wx.ALL | wx.EXPAND, 10)
 
     def bind_widgets(self):
         # Bind events
-        self.confirm_button.Bind(wx.EVT_BUTTON, self.process_input)
+        self.confirm_button.Bind(wx.EVT_BUTTON, self.connect_robot)
         self.disconnect_button.Bind(wx.EVT_BUTTON, self.disconnect_robot)
 
         self.sit_button.Bind(wx.EVT_BUTTON,
@@ -224,11 +222,13 @@ class RobotControlFrame(wx.Frame):
 
         self.new_window_button.Bind(wx.EVT_BUTTON, init)
 
-        self.active_toggle.Bind(wx.EVT_TOGGLEBUTTON, self.on_toggle)
+        self.active_toggle.Bind(wx.EVT_BUTTON, self.on_toggle)
 
         self.load_timeline_button.Bind(wx.EVT_BUTTON, self.on_load_timeline)
 
-    def process_input(self, event):
+        self.voice_button.Bind(wx.EVT_BUTTON, self.voice_toggle)
+
+    def connect_robot(self, event):
         """Checks for right IP and port entries, connects to given IP if passes"""
         if self.ip_entry.GetValue() == "":
             self.status.SetLabel("Status: IP cannot be empty!")
@@ -245,12 +245,6 @@ class RobotControlFrame(wx.Frame):
             # self.make_connect_file(self.ip_entry.GetValue(), self.port_entry.GetValue())
             self.robot = RobotControl(str(self.ip_entry.GetValue()), int(self.port_entry.GetValue()), self, self.timelines_folder)
 
-    def update_transcript(self, sender, text):
-        self.transcript.append({sender, text})
-        text_content = self.transcript_field.GetValue()+"\n"+str(sender)+": "+str(text)
-        self.transcript_field.SetValue(text_content)
-        self.status.Show()
-
     def disconnect_robot(self, event=None):
         self.status.SetLabel("Status: Not Connected")
         self.robot.close()
@@ -258,36 +252,37 @@ class RobotControlFrame(wx.Frame):
 
     def on_close(self, event):
         # Perform cleanup tasks here
+        self.Stt.Close()
         self.disconnect_robot()
         # Destroy the frame and exit the application
         self.Destroy()
         wx.GetApp().ExitMainLoop()
 
+    def voice_toggle(self, event):
+        if self.Stt.on:
+            self.Stt.on = False
+            self.voice_button.SetLabel("Voice input: OFF")
+        else:
+            self.Stt.on = True
+            self.voice_button.SetLabel("Voice input: ON")
+
     def on_toggle(self, event):
-        is_pressed = self.active_toggle.GetValue()
-        if is_pressed:
+        if self.active:
             self.active = False
+            self.active_toggle.SetLabel("Inactive")
             self.volume_adjust_app(0)
             self.vol_slider_app.Disable()
             self.robot.active(False)
         else:
             self.active = True
+            self.active_toggle.SetLabel("Active")
             self.volume_adjust_app(self.app_volume)
-            self.vol_slider_app.Enable(self)
+            self.vol_slider_app.Enable()
             self.robot.active(True)
 
     def send_text(self, event):
         value = self.tts_entry.GetValue()
-        self.update_transcript("Host", value)
         threading.Thread(target=self.robot.tts_command, args=(value,)).start()
-
-    def receiver(self):
-        while True:
-            self.receive_text()
-
-    def receive_text(self):
-        text = input("input: ")
-        self.update_transcript("Guest", text)
 
     def get_timelines_folder(self):
         """Return the path to the 'timelines' folder, handling both script and executable cases."""
@@ -319,7 +314,6 @@ class RobotControlFrame(wx.Frame):
             self.robot.timelines.play(selected_timeline)
         else:
             print("No timeline selected")
-
 
     def volume_adjust_robot(self, event):
         """Changes volume of robot's output (loudspeakers)"""
