@@ -22,7 +22,11 @@ class SttWorker:
                     try:
                         print("Reknete neco...")
                         audio = self.recognizer.listen(source)
-                        text = self.recognizer.recognize_google(audio, language="cs-CZ")  # Cestina
+                        if self.wxmain.language == "CZ":
+                            lang = "cs-CZ"
+                        else:
+                            lang = "en-US"
+                        text = self.recognizer.recognize_google(audio, language=lang)  # Cestina
                         print("Rozpoznany text:", text)
                         text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
                         if self.on:

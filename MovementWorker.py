@@ -2,7 +2,6 @@ from naoqi import ALProxy
 import time
 import threading
 
-
 class MovementWorker:
     def __init__(self, wxmain, nao_ip, nao_port):
         self.wxmain = wxmain
@@ -11,17 +10,25 @@ class MovementWorker:
         self.posture = ALProxy("ALRobotPosture", nao_ip, nao_port)  # posture - stand, sit etc
         self.motion.wbEnable(True)
         self.pose = "Crouch"
-        self.go_pose(self.pose)
+        self.life = ALProxy("ALAutonomousLife", nao_ip, nao_port)
 
     def go_pose(self, pose):
+        self.motion.wakeUp()
         threading.Thread(target=self.posture.goToPosture, args=(pose, self.MOVEMENT_SPEED)).start()
         self.pose = pose
+        time.sleep(2)
+        self.life.setState("disabled")
+        if (self.pose =="Crouch"):
+            self.rest()
+        elif (self.pose == "Stand"):
+            self.life.setState("solitary")
 
     def rest(self):
         self.motion.rest()
 
     def reset_pose(self):
         self.go_pose(self.pose)
+
 
     def move_forward(self):
         """Makes robot move forward a little bit"""

@@ -25,5 +25,6 @@ exe = EXE(pyz,
           debug=False,
           strip=False,
           upx=True,
-          console=True,  # Change to False if this is a GUI app
+          console=False,  # Change to False if this is a GUI app
+          icon="AvatarIcon.ico",
 )

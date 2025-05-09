@@ -39,6 +39,6 @@ try:
   motion = ALProxy("ALMotion")
   speech = ALProxy("ALAnimatedSpeech")
   motion.angleInterpolationBezier(names, times, keys)
-  speech.say(unicodedata.normalize('NFKD', text))
+  speech.say(text.encode("utf-8"))
 except BaseException as err:
   print(err) 

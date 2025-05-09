@@ -3,11 +3,12 @@ import math
 
 
 class JoystickPanel(wx.Panel):
-    def __init__(self, parent, move_callback):
+    def __init__(self, parent, wxmain, move_callback):
         wx.Panel.__init__(self, parent, size=(200, 100))  # Wider than it is tall
         self.SetBackgroundColour(wx.Colour(220, 220, 220))
         self.SetMinSize((200, 100))
         self.move_callback = move_callback
+        self.wxmain = wxmain
 
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_LEFT_DOWN, self.on_mouse_down)
@@ -50,7 +51,8 @@ class JoystickPanel(wx.Panel):
         # Reset joystick to the center
         self.joystick_position = list(self.center)
         self.Refresh()  # Redraw joystick
-        self.move_callback(0, 0)  # Send neutral position to move_head
+        self.wxmain.robot.reset_eyes()  # Reset eye follower
+        #self.move_callback(0, 0)  # Send neutral position to move_head
 
     def on_mouse_move(self, event):
         if self.dragging:

@@ -19,7 +19,6 @@ wx: "pip install wxpython==4.0.0.0"
 
 extra: bind tlačítek na klávesnici pro ovládání robota (možná i přes ovladač?)
 extra: nastavitelnost rychlosti pohybu - frekvence a krok - pomoci slidebarů
-extra: CZ a EN jazyk přepnutí
 """
 
 thread = threading.Event()
@@ -30,13 +29,14 @@ class RobotControlFrame(wx.Frame):
     def __init__(self, *args, **kw):
         super(RobotControlFrame, self).__init__(*args, **kw)
         self.SetSize((800, 600))
-        self.SetTitle("Sekretářka Nao")
+        self.SetTitle("Avatar Nao")
         self.ip_val = "192.168.0.122"
         self.port_val = "9559"
         self.robot_volume = 60
         self.app_volume = 60
         self.robot = None
         self.active = True
+        self.language = "Czech"
 
         self.panel = wx.Panel(self)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
@@ -86,11 +86,12 @@ class RobotControlFrame(wx.Frame):
         self.pointer_right = wx.Button(self.panel, label="Point Right")
         self.waver = wx.Button(self.panel, label="Wave")
 
-        self.joystick_panel = JoystickPanel(self.panel, self.move_head)
+        self.joystick_panel = JoystickPanel(self.panel, self, self.move_head)
 
         self.new_window_button = wx.Button(self.panel, label="New window")
         self.active_toggle = wx.Button(self.panel, label="Active")
         self.voice_button = wx.Button(self.panel, label="Voice input: OFF")
+        self.language_button = wx.Button(self.panel, label="CZ")
 
         self.Stt = SttWorker(self)
 
@@ -112,6 +113,7 @@ class RobotControlFrame(wx.Frame):
         top_sizer.Add(self.battery_label_val, 0, wx.ALL | wx.EXPAND, 5)
         top_sizer.Add(self.new_window_button, 0, wx.ALL | wx.EXPAND, 5)
         top_sizer.Add(self.active_toggle, 0, wx.ALL | wx.EXPAND, 5)
+        top_sizer.Add(self.language_button, 0, wx.ALL | wx.EXPAND, 5)
 
         self.sizer.Add(top_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
@@ -186,7 +188,7 @@ class RobotControlFrame(wx.Frame):
         self.sit_button.Bind(wx.EVT_BUTTON,
                              lambda event: threading.Thread(target=self.go_pose, args=("Crouch",)).start())
         self.stand_button.Bind(wx.EVT_BUTTON,
-                               lambda event: threading.Thread(target=self.go_pose, args=("StandInit",)).start())
+                               lambda event: threading.Thread(target=self.go_pose, args=("Stand",)).start())
 
         self.switch_camera_button.Bind(wx.EVT_BUTTON, self.swap_camera)
 
@@ -228,6 +230,8 @@ class RobotControlFrame(wx.Frame):
 
         self.voice_button.Bind(wx.EVT_BUTTON, self.voice_toggle)
 
+        self.language_button.Bind(wx.EVT_BUTTON, self.swap_language)
+
     def connect_robot(self, event):
         """Checks for right IP and port entries, connects to given IP if passes"""
         if self.ip_entry.GetValue() == "":
@@ -241,9 +245,8 @@ class RobotControlFrame(wx.Frame):
         elif not unicode(self.port_entry.GetValue()).isnumeric():
             self.status.SetLabel("Status: PORT can contain only numbers!")
         else:
-            self.status.SetLabel("Status: Connected")
-            # self.make_connect_file(self.ip_entry.GetValue(), self.port_entry.GetValue())
             self.robot = RobotControl(str(self.ip_entry.GetValue()), int(self.port_entry.GetValue()), self, self.timelines_folder)
+            self.status.SetLabel("Status: Connected")
 
     def disconnect_robot(self, event=None):
         self.status.SetLabel("Status: Not Connected")
@@ -272,6 +275,7 @@ class RobotControlFrame(wx.Frame):
             self.active_toggle.SetLabel("Inactive")
             self.volume_adjust_app(0)
             self.vol_slider_app.Disable()
+            self.robot.movementWorker.motion.rest()
             self.robot.active(False)
         else:
             self.active = True
@@ -279,6 +283,14 @@ class RobotControlFrame(wx.Frame):
             self.volume_adjust_app(self.app_volume)
             self.vol_slider_app.Enable()
             self.robot.active(True)
+
+    def swap_language(self, event):
+        if self.language == "Czech":
+            self.language = "English"
+            self.language_button.SetLabel("EN")
+        else:
+            self.language = "Czech"
+            self.language_button.SetLabel("CZ")
 
     def send_text(self, event):
         value = self.tts_entry.GetValue()
@@ -328,7 +340,7 @@ class RobotControlFrame(wx.Frame):
 
     def volume_adjust_app(self, val):
         """Adjusts robot input volume - what you hear on PC from robot microphone/s"""
-        self.robot.sound_streamer.change_volume(val)
+        self.robot.sound_streamer.change_volume(100-val)
 
     def swap_camera(self, event):
         self.robot.video.swap_camera()
@@ -349,7 +361,7 @@ class RobotControlFrame(wx.Frame):
         self.robot.movement.go_pose(pose)
 
     def move_head(self, angle, tilt):
-        self.robot.movement.move_head(angle, tilt)
+        self.robot.movement.move_head(-angle, tilt)
 
     def point_left(self):
         self.robot.movement.point_left()
